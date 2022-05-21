@@ -49,7 +49,12 @@ group("gn_all") {
 
   deps = [
     "//net",
+    "//components/cronet",
   ]
+
+  if (is_ios) {
+    deps -= [ "//components/cronet" ]
+  }
 }
 
 if (is_android && !is_cronet_build) {
