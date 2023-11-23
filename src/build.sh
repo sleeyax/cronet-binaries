@@ -112,5 +112,5 @@ export DEPOT_TOOLS_WIN_TOOLCHAIN=0
 
 if echo "$EXTRA_FLAGS" | grep -vq 'build_static=true\|target_os="ios"'; then
   ninja -C "$out" cronet cronet_static
-  ./make-cronet-cgo-sdk.sh
+ ./bundle-binaries.sh
 fi
