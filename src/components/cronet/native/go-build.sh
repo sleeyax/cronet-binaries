@@ -12,10 +12,10 @@ MAC_SDK_VERSION=12.1
 # done
 
 # Imports environment variables: GOOS, GOARCH, GOMIPS, CGO_CFLAGS, CGO_LDFLAGS
-# Imports bash variables: ARCH, target_cpu, CLANG_REVISION, WITH_CLANG, WITH_QEMU, WITH_ANDROID_IMG, buildmode_flag
+# Imports bash variables: host_os, target_cpu, CLANG_REVISION, WITH_CLANG, WITH_QEMU, WITH_ANDROID_IMG, buildmode_flag
 . ./go_env.sh
 
-if [ "$ARCH" = 'Windows' ]; then
+if [ "$host_os" = 'win' ]; then
   alias ln='MSYS=winsymlinks:nativestrict ln'
   exe_extension=.exe
 fi
@@ -34,7 +34,7 @@ if [ ! -d ./llvm/bin ]; then
   fi
 fi
 
-if [ "$ARCH" = 'Windows' ]; then
+if [ "$host_os" = 'win' ]; then
   ln -sfn "C:/Program Files/LLVM/lib/clang/$WINDOWS_LLVM_VERSION" ./llvm/lib/clang/
   cat >lld-link.cc <<EOF
 #include <cstdio>
@@ -80,7 +80,7 @@ EOF
 fi
 
 # Finds Mac SDK path for sysroot, following build/mac/find_sdk.py.
-if [ "$ARCH" = 'Darwin' ]; then
+if [ "$host_os" = 'mac' ]; then
   mac_sdk_path="$(xcode-select -print-path)"/Platforms/MacOSX.platform/Developer/SDKs/MacOSX$MAC_SDK_VERSION.sdk
   if [ ! -e "$mac_sdk_path" ]; then
     echo 'MacOS SDK not found'
@@ -114,9 +114,9 @@ run_cronet_example() {
       # Newer qemu-user-static can be separately installed.
       qemu-$WITH_QEMU-static -L "$rootfs" ./cronet_example "$@"
     fi
-  elif [ "$target_cpu" = "arm64" -a "$ARCH" = "Darwin" ]; then
+  elif [ "$target_cpu" = "arm64" -a "$host_os" = "mac" ]; then
     echo 'Skips testing cronet_example'
-  elif [ "$target_cpu" = "arm64" -a "$ARCH" = "Windows" ]; then
+  elif [ "$target_cpu" = "arm64" -a "$host_os" = "win" ]; then
     echo 'Skips testing cronet_example'
   else
     ./cronet_example "$@"
@@ -125,7 +125,7 @@ run_cronet_example() {
 
 go build $buildmode_flag cronet_example.go link_shared.go
 run_cronet_example http://example.com
-if [ "$ARCH" = "Linux" ]; then
+if [ "$host_os" = "linux" ]; then
   ./llvm/bin/llvm-strip cronet_example
 fi
 ls -l cronet_example${exe_extension}
@@ -133,7 +133,7 @@ rm -f cronet_example${exe_extension}
 
 go build $buildmode_flag cronet_example.go link_static.go
 run_cronet_example http://example.com
-if [ "$ARCH" = "Linux" ]; then
+if [ "$host_os" = "linux" ]; then
   ./llvm/bin/llvm-strip cronet_example
 fi
 ls -l cronet_example${exe_extension}

@@ -16,16 +16,16 @@ arm_*) abi=musl_eabi;;
 esac
 
 if [ "$subtarget" ]; then
-  SDK_PATH=openwrt-sdk-$release-$target-${subtarget}_gcc-${gcc_ver}_${abi}.Linux-x86_64
+  SDK_PATH=openwrt-toolchain-$release-$target-${subtarget}_gcc-${gcc_ver}_${abi}.Linux-x86_64
 else
   subtarget='generic'
-  SDK_PATH=openwrt-sdk-$release-${target}_gcc-${gcc_ver}_${abi}.Linux-x86_64
+  SDK_PATH=openwrt-toolchain-$release-${target}_gcc-${gcc_ver}_${abi}.Linux-x86_64
 fi
 SDK_URL=https://downloads.openwrt.org/releases/$release/targets/$target/$subtarget/$SDK_PATH.tar.xz
 rm -rf $SDK_PATH
 curl $SDK_URL | tar xJf -
 cd $SDK_PATH
-full_root=staging_dir/toolchain-*_gcc-${gcc_ver}_${abi}
+full_root=toolchain-*_gcc-${gcc_ver}_${abi}
 cat >include.txt <<EOF
 ./include
 ./lib/*.o
@@ -45,4 +45,6 @@ cat >include.txt <<EOF
 ./usr
 EOF
 tar cf - -C $full_root --hard-dereference . | tar xf - -C $sysroot --wildcards --wildcards-match-slash -T include.txt
-rm -rf include.txt $SDK_PATH
+rm -rf include.txt
+cd ..
+rm -rf $SDK_PATH

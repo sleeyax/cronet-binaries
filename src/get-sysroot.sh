@@ -1,85 +1,58 @@
-ARCH=$(uname)
+eval "$EXTRA_FLAGS"
+
+case "$(uname)" in
+  MINGW*|MSYS*) host_os=win;;
+  Linux) host_os=linux;;
+  Darwin) host_os=mac;;
+  *) echo "Unsupported host OS" >&2; exit 1;;
+esac
+
+case "$(uname -m)" in
+  x86_64|x64) host_cpu=x64;;
+  x86|i386|i686) host_cpu=x86;;
+  arm) host_cpu=arm;;
+  arm64|aarch64|armv8b|armv8l) host_cpu=arm64;;
+  *) echo "Unsupported host CPU" >&2; exit 1;;
+esac
+
+# See src/build/config/BUILDCONFIG.gn
+if [ ! "$target_os" ]; then
+  target_os="$host_os"
+fi
+
+if [ ! "$target_cpu" ]; then
+  target_cpu="$host_cpu"
+fi
 
 PYTHON=$(which python3 2>/dev/null || which python 2>/dev/null)
-CLANG_REVISION=$($PYTHON tools/clang/scripts/update.py --print-revision)
 
-eval "$EXTRA_FLAGS"
-case "$ARCH" in
-  Linux)
-    if which ccache >/dev/null 2>&1; then
-      export CCACHE_SLOPPINESS=time_macros
-      export CCACHE_BASEDIR="$PWD"
-      export CCACHE_CPP2=yes
-      CCACHE=ccache
-    fi
-    WITH_CLANG=Linux_x64
-    WITH_PGO=linux
-    WITH_GN=linux
+# sysroot
+case "$target_os" in
+  linux)
     case "$target_cpu" in
-      x64) WITH_QEMU=x86_64;;
-      x86) WITH_QEMU=i386;;
-      arm64) WITH_QEMU=aarch64;;
-      arm) WITH_QEMU=arm;;
-      mipsel) WITH_QEMU=mipsel;;
-      mips64el) WITH_QEMU=mips64el;;
+      x64) SYSROOT_ARCH=amd64;;
+      x86) SYSROOT_ARCH=i386;;
+      arm64) SYSROOT_ARCH=arm64;;
+      arm) SYSROOT_ARCH=armhf;;
+      mipsel) SYSROOT_ARCH=mipsel;;
+      mips64el) SYSROOT_ARCH=mips64el;;
+      riscv64) SYSROOT_ARCH=riscv64;;
     esac
-    if [ "$OPENWRT_FLAGS" ]; then
-      eval "$OPENWRT_FLAGS"
-      WITH_SYSROOT="out/sysroot-build/openwrt/$release/$arch"
-    elif [ "$target_os" = android ]; then
-      WITH_PGO=
-      USE_AFDO=y
-      USE_ANDROID_NDK=y
-      WITH_SYSROOT=
-      case "$target_cpu" in
-        x64) WITH_ANDROID_IMG=x86_64-24_r08;;
-        x86) WITH_ANDROID_IMG=x86-24_r08;;
-        arm64) WITH_ANDROID_IMG=arm64-v8a-24_r07;;
-        arm) WITH_ANDROID_IMG=armeabi-v7a-24_r07;;
-      esac
-    else
-      case "$target_cpu" in
-        x64) sysroot_path=amd64 BUILD_SYSROOT=BuildSysrootAmd64;;
-        x86) sysroot_path=i386 BUILD_SYSROOT=BuildSysrootI386;;
-        arm64) sysroot_path=arm64 BUILD_SYSROOT=BuildSysrootARM64;;
-        arm) sysroot_path=arm BUILD_SYSROOT=BuildSysrootARM;;
-        mipsel) sysroot_path=mips BUILD_SYSROOT=BuildSysrootMips;;
-        mips64el) sysroot_path=mips64el BUILD_SYSROOT=BuildSysrootMips64el;;
-      esac
-      if [ "$sysroot_path" ]; then
-        WITH_SYSROOT="out/sysroot-build/bullseye/bullseye_${sysroot_path}_staging"
-      fi
+    if [ "$SYSROOT_ARCH" ]; then
+      WITH_SYSROOT="out/sysroot-build/bullseye/bullseye_${SYSROOT_ARCH}_staging"
     fi
   ;;
-  MINGW*|MSYS*)
-    ARCH=Windows
-    if [ -f "$HOME"/.cargo/bin/sccache* ]; then
-      export PATH="$PATH:$HOME/.cargo/bin"
-      CCACHE=sccache
-    fi
-    WITH_CLANG=Win
-    USE_SCCACHE=y
-    WITH_GN=windows
-    case "$target_cpu" in
-      x64) WITH_PGO=win64;;
-      *) WITH_PGO=win32;;
-    esac
+  openwrt)
+    eval "$OPENWRT_FLAGS"
+    WITH_SYSROOT="out/sysroot-build/openwrt/$release/$arch"
   ;;
-  Darwin)
-    if which ccache >/dev/null 2>&1; then
-      export CCACHE_SLOPPINESS=time_macros
-      export CCACHE_BASEDIR="$PWD"
-      export CCACHE_CPP2=yes
-      CCACHE=ccache
-    fi
-    WITH_CLANG=Mac
-    WITH_GN=mac
+  android)
+    WITH_SYSROOT=
     case "$target_cpu" in
-      arm64) WITH_PGO=mac-arm;;
-      *) WITH_PGO=mac;;
+      x64) WITH_ANDROID_IMG=x86_64-24_r08;;
+      x86) WITH_ANDROID_IMG=x86-24_r08;;
+      arm64) WITH_ANDROID_IMG=arm64-v8a-24_r07;;
+      arm) WITH_ANDROID_IMG=armeabi-v7a-24_r07;;
     esac
   ;;
 esac
-if [ "$WITH_PGO" ]; then
-  PGO_PATH=$(cat chrome/build/$WITH_PGO.pgo.txt)
-fi

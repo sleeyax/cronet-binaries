@@ -2,8 +2,8 @@
 
 . ./get-sysroot.sh
 
-case "$ARCH" in
-  Linux)
+case "$host_os" in
+  linux)
     WITH_GOOS=linux
     if [ "$target_os" = 'android' ]; then
       WITH_GOOS=android
@@ -19,7 +19,7 @@ case "$ARCH" in
     shared_lib_name='libcronet.so'
     static_lib_name='libcronet_static.a'
   ;;
-  Windows)
+  win)
     WITH_GOOS=windows
     case "$target_cpu" in
       x64) WITH_GOARCH=amd64;;
@@ -30,7 +30,7 @@ case "$ARCH" in
     dll_name='cronet.dll'
     static_lib_name='cronet_static.lib'
   ;;
-  Darwin)
+  mac)
     WITH_GOOS=darwin
     case "$target_cpu" in
       x64) WITH_GOARCH=amd64;;
@@ -62,13 +62,13 @@ if [ "$WITH_SYSROOT" ]; then
 fi
 
 # Mac SDK path should be detected in the CGO builder.
-if [ "$ARCH" = 'Darwin' ]; then
+if [ "$host_os" = 'mac' ]; then
   cgo_sysroot_flag='-isysroot $PWD/sysroot'
   link_sysroot_flag='-isysroot ${SRCDIR}/sysroot'
 fi
 
 cp -a out/Release/$shared_lib_name out/Release/cronet/
-if [ "$ARCH" = 'Windows' ]; then
+if [ "$host_os" = 'win' ]; then
   cp -a out/Release/$dll_name out/Release/cronet/
 fi
 cp -a out/Release/obj/components/cronet/$static_lib_name out/Release/cronet/
@@ -110,7 +110,7 @@ static_libs="$(getflag cronet_example_external_static libs)"
 shared_frameworks="$(getflag cronet_example_external frameworks)"
 static_frameworks="$(getflag cronet_example_external_static frameworks)"
 
-if [ "$ARCH" = 'Linux' ]; then
+if [ "$host_os" = 'linux' ]; then
   static_libs="./$static_lib_name $static_libs"
   # Regular Linux seems to require this.
   if [ ! "$target_os" ]; then
@@ -119,7 +119,7 @@ if [ "$ARCH" = 'Linux' ]; then
   if [ "$target_os" = 'android' ]; then
     static_libs="$(echo $static_libs | sed 's#[^ ]*/anchor_functions.lds#./anchor_functions.lds#')"
   fi
-elif [ "$ARCH" = 'Windows' ]; then
+elif [ "$host_os" = 'win' ]; then
   # -Wno-dll-attribute-on-redeclaration: https://github.com/golang/go/issues/46502
   cgo_cflags="$cgo_cflags -Wno-dll-attribute-on-redeclaration"
 
@@ -171,19 +171,19 @@ elif [ "$ARCH" = 'Windows' ]; then
   # xyz.lib must be wrapped in clang options
   shared_libs="./$shared_lib_name $(echo $shared_libs | sed 's/\([a-z0-9_]*\)\.lib/-l\1/g' )"
   static_libs="./$static_lib_name $(echo $static_libs | sed 's/\([a-z0-9_]*\)\.lib/-l\1/g' )"
-elif [ "$ARCH" = 'Darwin' ]; then
+elif [ "$host_os" = 'mac' ]; then
   static_libs="./$static_lib_name $static_libs"
 fi
 
-if [ "$ARCH" = 'Linux' ]; then
+if [ "$host_os" = 'linux' ]; then
   # Follows the order of tool("link") from build/toolchain/gcc_toolchain.gni
   shared_ldflags="$shared_ldflags $shared_solibs $shared_libs"
   static_ldflags="$static_ldflags $static_solibs $static_libs"
-elif [ "$ARCH" = 'Windows' ]; then
+elif [ "$host_os" = 'win' ]; then
   # Follows the order of tool("link") from build/toolchain/win/toolchain.gni
   shared_ldflags="$sys_lib_flags $shared_libs $shared_solibs $shared_ldflags"
   static_ldflags="$sys_lib_flags $static_libs $static_solibs $static_ldflags"
-elif [ "$ARCH" = 'Darwin' ]; then
+elif [ "$host_os" = 'mac' ]; then
   # Follows the order of tool("link") from build/toolchain/apple/toolchain.gni
   shared_ldflags="$shared_ldflags $shared_frameworks $shared_solibs $shared_libs"
   static_ldflags="$static_ldflags $static_frameworks $static_solibs $static_libs"
@@ -204,7 +204,7 @@ buildmode_flag='-buildmode=pie'
 if [ "$target_cpu" = 'mipsel' -o "$target_cpu" = 'mips64el' ]; then
   # CGO does not support PIE for linux/mipsle,mipe64le.
   buildmode_flag=
-elif [ "$target_cpu" = 'arm64' -a "$ARCH" = 'Windows' ]; then
+elif [ "$target_cpu" = 'arm64' -a "$host_os" = 'win' ]; then
   # CGO does not support PIE for windows/arm64.
   buildmode_flag=
 elif [ "$target_cpu" = 'x86' -a "$target_os" != 'android' ]; then
@@ -226,12 +226,12 @@ if [ "$target_cpu" = 'mipsel' -o "$target_cpu" = 'mips64el' ]; then
 fi
 
 # Allows running cronet_example test case without explicit LD_LIBRARY_PATH.
-if [ "$ARCH" = 'Linux' ]; then
+if [ "$host_os" = 'linux' ]; then
   shared_ldflags="$shared_ldflags -Wl,-rpath,\$ORIGIN"
 fi
 
 cat >out/Release/cronet/go_env.sh <<EOF
-ARCH=$ARCH
+host_os=$host_os
 target_cpu=$target_cpu
 CLANG_REVISION=$CLANG_REVISION
 WITH_CLANG=$WITH_CLANG
