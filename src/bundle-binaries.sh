@@ -23,7 +23,7 @@ set -ex
 mkdir -p out/Release/cronet
 
 if [ "$target_os" = 'android' ]; then
-  WITH_SYSROOT='third_party/android_ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot'
+  WITH_SYSROOT='third_party/android_toolchain/ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot'
 fi
 
 cp -a out/Release/$shared_lib_name out/Release/cronet/
